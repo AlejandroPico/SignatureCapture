@@ -24,6 +24,7 @@ public class SignatureCapture extends JFrame { private DrawPanel drawPanel;
 	private JToggleButton textModeToggle;
 	private JToggleButton boldButton, italicButton, underlineButton;
 	private JComboBox<Integer> fontSizeCombo;
+	private Integer buttonSize = 20;
 
     public SignatureCapture() {
         setTitle("Capturador de Firmas");
@@ -144,6 +145,9 @@ public class SignatureCapture extends JFrame { private DrawPanel drawPanel;
         java.net.URL url = getClass().getResource(iconPath);
         if (url != null) {
             ImageIcon icon = new ImageIcon(url);
+            // Escalar la imagen a 32x32 píxeles (ajusta el tamaño según lo necesites)
+            Image scaledImage = icon.getImage().getScaledInstance(buttonSize, buttonSize, Image.SCALE_SMOOTH);
+            icon = new ImageIcon(scaledImage);
             button.setIcon(icon);
         } else {
             button.setText(fallbackText);
@@ -159,6 +163,8 @@ public class SignatureCapture extends JFrame { private DrawPanel drawPanel;
         java.net.URL url = getClass().getResource(iconPath);
         if (url != null) {
             ImageIcon icon = new ImageIcon(url);
+            Image scaledImage = icon.getImage().getScaledInstance(buttonSize, buttonSize, Image.SCALE_SMOOTH);
+            icon = new ImageIcon(scaledImage);
             button.setIcon(icon);
         } else {
             button.setText(fallbackText);
