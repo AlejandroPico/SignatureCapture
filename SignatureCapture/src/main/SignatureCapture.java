@@ -3,7 +3,6 @@ package main;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
-
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.Line2D;
@@ -14,17 +13,19 @@ import java.util.List;
 import javax.swing.filechooser.*;
 
 @SuppressWarnings("serial")
-public class SignatureCapture extends JFrame { private DrawPanel drawPanel; 
+public class SignatureCapture extends JFrame {
+    private DrawPanel drawPanel; 
 
-	private JButton saveButton, openButton, newButton;
-	private JButton bgButton, undoButton, clearButton;
-	private JButton colorButton;
-	private JPanel colorHistoryPanel;
-	private List<Color> colorHistory = new ArrayList<>();
-	private JToggleButton textModeToggle;
-	private JToggleButton boldButton, italicButton, underlineButton;
-	private JComboBox<Integer> fontSizeCombo;
-	private Integer buttonSize = 20;
+    private JButton saveButton, openButton, newButton;
+    private JButton bgButton, undoButton, clearButton;
+    private JButton colorButton;
+    private JPanel colorHistoryPanel;
+    private List<Color> colorHistory = new ArrayList<>();
+    private JToggleButton textModeToggle;
+    private JToggleButton boldButton, italicButton, underlineButton;
+    private JComboBox<Integer> fontSizeCombo;
+    private JComboBox<Integer> thicknessCombo;  // <-- Selector de grosor
+    private Integer buttonSize = 20;
 
     public SignatureCapture() {
         setTitle("Capturador de Firmas");
@@ -76,6 +77,13 @@ public class SignatureCapture extends JFrame { private DrawPanel drawPanel;
         colorHistoryPanel.setBorder(new TitledBorder("Historial de color"));
         colorHistoryPanel.setPreferredSize(new Dimension(150, 40));
         
+        // ───────── Selector de Grosor ─────────
+        Integer[] thicknesses = {1, 2, 3, 4, 5, 6, 8, 10};
+        thicknessCombo = new JComboBox<>(thicknesses);
+        thicknessCombo.setEditable(false);
+        thicknessCombo.setPreferredSize(new Dimension(60, thicknessCombo.getPreferredSize().height));
+        JLabel thicknessLabel = new JLabel("Grosor:");
+        
         // ───────── Agrupaciones de la barra de controles ─────────
         // Grupo Archivo: Guardar, Abrir y Nuevo
         JPanel archivoGroup = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
@@ -102,12 +110,19 @@ public class SignatureCapture extends JFrame { private DrawPanel drawPanel;
         textoGroup.add(colorHistoryPanel);
         textoGroup.setBorder(new TitledBorder("Texto"));
         
-        // Panel contenedor superior con los tres grupos ordenados de izquierda a derecha
+        // Grupo Línea: Selector de Grosor
+        JPanel lineaGroup = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        lineaGroup.add(thicknessLabel);
+        lineaGroup.add(thicknessCombo);
+        lineaGroup.setBorder(new TitledBorder("Línea"));
+        
+        // Panel contenedor superior con los grupos ordenados de izquierda a derecha
         JPanel topPanel = new JPanel(new BorderLayout());
         JPanel groupsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
         groupsPanel.add(archivoGroup);
         groupsPanel.add(accionesGroup);
         groupsPanel.add(textoGroup);
+        groupsPanel.add(lineaGroup); // <-- Se añade el grupo de grosor
         topPanel.add(groupsPanel, BorderLayout.CENTER);
         topPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         add(topPanel, BorderLayout.NORTH);
@@ -137,6 +152,14 @@ public class SignatureCapture extends JFrame { private DrawPanel drawPanel;
         saveButton.addActionListener(e -> saveImage());
         openButton.addActionListener(e -> openImage());
         newButton.addActionListener(e -> newSignature());
+        
+        // Evento para actualizar el grosor de la línea
+        thicknessCombo.addActionListener(e -> {
+            int grosor = (Integer) thicknessCombo.getSelectedItem();
+            drawPanel.setStrokeWidth(grosor);
+        });
+        // Inicializar el grosor en el drawPanel
+        drawPanel.setStrokeWidth((Integer) thicknessCombo.getSelectedItem());
     }
 
     // Crea un botón con icono cargado desde la ruta indicada; si falla, usa un texto de respaldo
@@ -305,6 +328,12 @@ public class SignatureCapture extends JFrame { private DrawPanel drawPanel;
         private Point textStartPoint;
         private Rectangle currentTextRect;
         private JTextArea activeTextArea;
+        // Grosor actual de la línea
+        private float strokeWidth = 2.0f;
+        
+        public void setStrokeWidth(float width) {
+            this.strokeWidth = width;
+        }
         
         public DrawPanel() {
             setBackground(Color.WHITE);
@@ -360,7 +389,7 @@ public class SignatureCapture extends JFrame { private DrawPanel drawPanel;
                         repaint();
                     } else if (!textMode && lastPoint != null) {
                         Line2D.Float line = new Line2D.Float(lastPoint.x, lastPoint.y, e.getX(), e.getY());
-                        currentStroke.add(new ColoredShape(line, drawingColor));
+                        currentStroke.add(new ColoredShape(line, drawingColor, strokeWidth));
                         lastPoint = e.getPoint();
                         repaint();
                     }
@@ -414,6 +443,7 @@ public class SignatureCapture extends JFrame { private DrawPanel drawPanel;
             for (List<ColoredShape> group : strokeGroups) {
                 for (ColoredShape cs : group) {
                     g2d.setColor(cs.color);
+                    g2d.setStroke(new BasicStroke(cs.strokeWidth));
                     g2d.draw(cs.shape);
                 }
             }
@@ -421,6 +451,7 @@ public class SignatureCapture extends JFrame { private DrawPanel drawPanel;
             if (currentStroke != null) {
                 for (ColoredShape cs : currentStroke) {
                     g2d.setColor(cs.color);
+                    g2d.setStroke(new BasicStroke(cs.strokeWidth));
                     g2d.draw(cs.shape);
                 }
             }
@@ -503,13 +534,15 @@ public class SignatureCapture extends JFrame { private DrawPanel drawPanel;
         }
     }
 
-    // Clase para almacenar cada segmento trazado con su color
+    // Clase para almacenar cada segmento trazado con su color y grosor
     class ColoredShape {
         Shape shape;
         Color color;
-        ColoredShape(Shape shape, Color color) {
+        float strokeWidth;
+        ColoredShape(Shape shape, Color color, float strokeWidth) {
             this.shape = shape;
             this.color = color;
+            this.strokeWidth = strokeWidth;
         }
     }
 
